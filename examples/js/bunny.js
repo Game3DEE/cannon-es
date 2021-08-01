@@ -4404,4 +4404,80 @@ const bunny = [
   },
 ]
 
-export { bunny }
+const fs = require('fs');
+
+// from https://www.tutorialspoint.com/how-to-create-guid-uuid-in-javascript
+// CAVEAT: This is not secure in any kind of way, just using it here to not
+// incur dependencies like the 'uuid' module, that any sensible person should
+// use instead
+function createUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+     return v.toString(16).toUpperCase();
+  });
+}
+
+const materialUuid = createUUID();
+
+// Template for output JSON file
+const scene = {
+  metadata: {
+		version: 4.5,
+		type: "Object",
+		generator: "BunnyToJSON"
+  },
+  geometries: [
+  ],
+  materials: [{
+    uuid: materialUuid,
+    type: "MeshBasicMaterial", // Don't use MeshNormalMaterial, GLTFExporter chokes on it
+  }],
+  object: {
+		uuid: createUUID(),
+		type: "Object3D",
+		name: "CannonES Bunny",
+    layers: 1,
+		matrix: [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+    children: [],
+  }
+};
+
+// add child Mesh per part
+bunny.forEach(({ vertices, faces, offset }, partIdx) => {
+  const geometryUuid = createUUID();
+
+  let child = {
+    uuid: createUUID(),
+    type: "Mesh",
+    name: `Bunny Part ${partIdx+1}`,
+    layers: 1,
+    matrix: [1,0,0,0,0,1,0,0,0,0,1,0,offset[0],offset[1],offset[2],1],
+    geometry: geometryUuid,
+    material: materialUuid,
+  };
+  scene.object.children.push(child);
+  
+  scene.geometries.push({
+    uuid: geometryUuid,
+    type: "BufferGeometry",
+    data: {
+      attributes: {
+        position: {
+          itemSize: 3,
+          type: "Float32Array",
+          array: vertices.slice(),
+          normalized: false,
+        },
+      },
+      index: {
+        itemSize: 1,
+        type: "Uint16Array",
+        array: faces.slice(),
+        normalized: false,
+      },  
+    },
+    //boundingSphere: { center: [], radius: 0 },
+  })
+});
+
+fs.writeFileSync('bunny.json', JSON.stringify(scene, undefined, 2));
